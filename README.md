@@ -171,7 +171,7 @@ Results evaluated on the held-out test split (1,675 decisions) using **Doc2Vec +
 
 ---
 
-## 🧪 Automated Testing
+Automated Testing
 
 Execute the comprehensive test suite verifying all models, data pipelines, and API endpoints:
 
