@@ -92,7 +92,8 @@ Clone & Set Up Environment
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/supreme-court-legal-classification.git
+git clone https://github.com/parinitharamesh/ML-MINI-PROJECT.git
+cd ML-MINI-PROJECT
 cd supreme-court-legal-classification
 
 # Create and activate virtual environment (optional but recommended)
