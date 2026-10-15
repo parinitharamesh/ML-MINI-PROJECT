@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LegalNLP: Supreme Court Opinion Classification & Semantic Precedent Engine</title>
+  <meta name="description" content="End-to-End implementation of Supreme Court Legal Text Classification, LDA Topic Modeling, Doc2Vec Embeddings, and Precedent Search Engine based on Krithika Iyer (2020).">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-icon">⚖</div>
+        <div class="brand-titles">
+          <h1>Supreme Court Legal Opinion Classifier</h1>
+          <p>Machine Learning Mini-Project • UE24CS352A • Paper Implementation (Iyer 2020)</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <div class="badge-tag">
+          <span class="badge-dot"></span>
+          <span>8,376 Decisions</span>
+        </div>
+        <div class="badge-tag">
+          <span>SCDB Corpus</span>
+        </div>
+        <div class="badge-tag">
+          <span>Doc2Vec + LDA</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" id="tabBtnOverview" onclick="switchTab('tabOverview')">
+        <span>📊</span> Corpus &amp; EDA
+      </button>
+      <button class="tab-btn" id="tabBtnClassifier" onclick="switchTab('tabClassifier')">
+        <span>⚡</span> Live Opinion Classifier
+      </button>
+      <button class="tab-btn" id="tabBtnPrecedents" onclick="switchTab('tabPrecedents')">
+        <span>🔍</span> Semantic Precedent Search
+      </button>
+      <button class="tab-btn" id="tabBtnBenchmark" onclick="switchTab('tabBenchmark')">
+        <span>📑</span> Model Benchmark &amp; Paper Reproduction
+      </button>
+    </nav>
+
+    <!-- TAB 1: Overview & EDA -->
+    <section id="tabOverview" class="tab-pane active">
+      <div class="grid-3" style="margin-bottom: 1.5rem;">
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Total Decisions Analyzed</span>
+          <span class="stat-value" id="statTotalCases">8,376</span>
+          <span class="stat-sub">U.S. Supreme Court Rulings (1946 – 2018)</span>
+        </div>
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Corpus Scale &amp; Word Count</span>
+          <span class="stat-value" id="statMedianWords">5,592</span>
+          <span class="stat-sub">Median Words / Opinion (Max: 87,246 words)</span>
+        </div>
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Classification Targets</span>
+          <span class="stat-value">15 / 263</span>
+          <span class="stat-sub">15 Issue Areas &amp; 263 Fine Issues</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="glass-panel">
+          <div class="card-header">
+            <h2 class="card-title"><span>📈</span> Figure 1 Reproduction: Distribution</h2>
+          </div>
+          <div class="card-body">
+            <div class="img-container">
+              <img id="imgFig1" src="/outputs/figures/figure1_paper_distribution.png" alt="Figure 1: Issue Code and Issue Area Frequency Plot">
+            </div>
+            <p style="font-size: 0.825rem; color: var(--text-secondary); margin-top: 0.75rem;">
+              Direct reproduction of Figure 1 from Krithika Iyer (2020), showing the high class imbalance across legal areas (predominantly Criminal Procedure, Economic Activity, and Civil Rights).
+            </p>
+          </div>
+        </div>
+
+        <div class="glass-panel">
+          <div class="card-header">
+            <h2 class="card-title"><span>⚖</span> Legal Domain Categories Breakdown</h2>
+          </div>
+          <div class="card-body">
+            <div class="img-container">
+              <img id="imgBreakdown" src="/outputs/figures/issue_area_breakdown.png" alt="Issue Area Breakdown">
+            </div>
+            <p style="font-size: 0.825rem; color: var(--text-secondary); margin-top: 0.75rem;">
+              Distribution of decisions across the 15 SCDB human-curated legal domains. Rare classes like Miscellaneous and Private Action present challenging few-shot regimes.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Live Opinion Classifier -->
+    <section id="tabClassifier" class="tab-pane">
+      <div class="grid-2">
+        <div class="glass-panel">
+          <div class="card-header">
+            <h2 class="card-title"><span>📝</span> Input Legal Opinion Text</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="sampleCaseSelect" class="form-label">Load Landmark Case Example:</label>
+              <select id="sampleCaseSelect" class="form-select" onchange="loadSelectedSample()">
+                <option value="">-- Choose a Landmark Precedent to Test --</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="caseTextInput" class="form-label">Full Judicial Text or Reasoning Excerpt:</label>
+              <textarea id="caseTextInput" class="form-textarea" placeholder="Paste legal text here or select a landmark case above..."></textarea>
+            </div>
+
+            <button id="btnClassify" class="btn-primary" onclick="runClassification()">
+              <span>⚖</span> Classify Legal Domain &amp; Extract Topics
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-panel">
+          <div class="card-header">
+            <h2 class="card-title"><span>🎯</span> Model Classification Results</h2>
+          </div>
+          <div class="card-body">
+            <div id="classificationPlaceholder" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚖</div>
+              <p>Select a case and click "Classify" to evaluate predictions from both Doc2Vec and LDA models.</p>
+            </div>
+
+            <div id="classificationResult" style="display: none;">
+              <!-- Doc2Vec Result -->
+              <div class="prediction-box">
+                <div class="prediction-header">
+                  <div>
+                    <h3 style="font-size: 1rem; color: var(--gold-light);">Doc2Vec + Logistic Regression</h3>
+                    <p style="font-size: 0.75rem; color: var(--text-secondary);">Distributed Memory (PV-DM) Embeddings</p>
+                  </div>
+                  <span id="d2vBadge" class="prediction-badge">Privacy</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                  <span>Model Confidence:</span>
+                  <span id="d2vConf" style="font-family: var(--font-mono); font-weight: 700; color: var(--gold-light);">88.4%</span>
+                </div>
+                <div class="confidence-bar-bg">
+                  <div id="d2vBar" class="confidence-bar-fill" style="width: 88%;"></div>
+                </div>
+
+                <div style="margin-top: 1rem;">
+                  <span style="font-size: 0.775rem; color: var(--text-muted); text-transform: uppercase;">Top Ranked Probabilities:</span>
+                  <div id="d2vTopList" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
+                </div>
+              </div>
+
+              <!-- LDA Result -->
+              <div class="prediction-box" style="margin-top: 1rem; border-color: rgba(59, 130, 246, 0.35);">
+                <div class="prediction-header">
+                  <div>
+                    <h3 style="font-size: 1rem; color: #93c5fd;">LDA + Logistic Regression (Baseline)</h3>
+                    <p style="font-size: 0.75rem; color: var(--text-secondary);">50 Latent Dirichlet Topics + TF-IDF</p>
+                  </div>
+                  <span id="ldaBadge" class="prediction-badge" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">Privacy</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                  <span>Confidence:</span>
+                  <span id="ldaConf" style="font-family: var(--font-mono); font-weight: 700; color: #93c5fd;">64.2%</span>
+                </div>
+                <div class="confidence-bar-bg">
+                  <div id="ldaBar" class="confidence-bar-fill" style="width: 64%; background: #3b82f6;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Semantic Precedent Search -->
+    <section id="tabPrecedents" class="tab-pane">
+      <div class="grid-2">
+        <div class="glass-panel">
+          <div class="card-header">
+            <h2 class="card-title"><span>🕸</span> Figure 2 Precedent Network (Roe v. Wade)</h2>
+          </div>
+          <div class="card-body">
+            <div class="img-container">
+              <img id="imgFig2" src="/outputs/figures/figure2_precedent_similarity_graph.png" alt="Figure 2: Roe v. Wade Precedent Graph">
+            </div>
+            <p style="font-size: 0.825rem; color: var(--text-secondary); margin-top: 0.75rem;">
+              Reproduction of Figure 2 from Iyer (2020). Using Doc2Vec latent embeddings as search indices, Roe v. Wade (410 U.S. 113) accurately retrieves interconnected reproductive privacy precedents (Akron 0.645, Thornburgh 0.617, Webster 0.567, Casey 0.512).
+            </p>
+          </div>
+        </div>
+
+        <div class="glass-panel">
+          <div class="card-header">
+            <h2 class="card-title"><span>🔍</span> Interactive Precedent Search</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="precedentSelect" class="form-label">Select Landmark Case to Query Precedents:</label>
+              <select id="precedentSelect" class="form-select" onchange="runPrecedentSearch()">
+                <option value="3397">Roe v. Wade (410 U.S. 113) - Privacy</option>
+                <option value="5094">Akron v. Akron Center for Reproductive Health (462 U.S. 416) - Privacy</option>
+                <option value="6489">Planned Parenthood v. Casey (505 U.S. 833) - Privacy</option>
+                <option value="0">Halliburton Oil Well Cementing Co. v. Walker (329 U.S. 1) - Economic Activity</option>
+                <option value="1610">Monroe et al. v. Pape et al. (365 U.S. 167) - Civil Rights</option>
+                <option value="5046">Smith v. Wade (461 U.S. 30) - Civil Rights</option>
+              </select>
+            </div>
+
+            <div id="precedentResultsList" class="precedent-list" style="margin-top: 1.25rem;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Model Benchmark & Paper Reproduction -->
+    <section id="tabBenchmark" class="tab-pane">
+      <div class="grid-2" style="margin-bottom: 1.5rem;">
+        <div class="glass-panel">
+          <div class="card-header">
+            <h2 class="card-title"><span>📊</span> Table 1: Classification Accuracy Comparison</h2>
+          </div>
+          <div class="card-body">
+            <table class="custom-table" id="table1Comparison">
+              <thead>
+                <tr>
+                  <th>Model Architecture</th>
+                  <th>15-Labels (Area)</th>
+                  <th>279-Labels (Issue)</th>
+                  <th>Macro F1</th>
+                </tr>
+              </thead>
+              <tbody id="table1Body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+            <div style="margin-top: 1rem; padding: 0.85rem; background: rgba(255,255,255,0.02); border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-secondary);">
+              <strong>Paper Finding:</strong> Doc2Vec outperforms the LDA baseline significantly on 15 legal domains. The hierarchical Head+Tail Transformer eliminates the Out-Of-Memory bottleneck encountered by Iyer (2020).
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-panel">
+          <div class="card-header">
+            <h2 class="card-title"><span>📋</span> Table 2: Category Breakdown (Doc2Vec + LR)</h2>
+          </div>
+          <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+            <table class="custom-table" id="table2Breakdown">
+              <thead>
+                <tr>
+                  <th>Domain (Label)</th>
+                  <th>Precision</th>
+                  <th>Recall</th>
+                  <th>F-1</th>
+                  <th>Docs</th>
+                </tr>
+              </thead>
+              <tbody id="table2Body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confusion Matrices -->
+      <div class="grid-2">
+        <div class="glass-panel">
+          <div class="card-header">
+            <h2 class="card-title"><span>🔲</span> Doc2Vec + LR Confusion Matrix</h2>
+          </div>
+          <div class="card-body">
+            <div class="img-container">
+              <img id="imgCmDoc2Vec" src="/outputs/figures/confusion_matrix_doc2vec.png" alt="Doc2Vec Confusion Matrix">
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-panel">
+          <div class="card-header">
+            <h2 class="card-title"><span>🔲</span> LDA + LR Baseline Confusion Matrix</h2>
+          </div>
+          <div class="card-body">
+            <div class="img-container">
+              <img id="imgCmLda" src="/outputs/figures/confusion_matrix_lda.png" alt="LDA Confusion Matrix">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Client-side script -->
+  <script>
+    let sampleCasesData = [];
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+      const activeBtnId = 'tabBtn' + tabId.replace('tab', '');
+      const btn = document.getElementById(activeBtnId);
+      if (btn) btn.classList.add('active');
+
+      const pane = document.getElementById(tabId);
+      if (pane) pane.classList.add('active');
+    }
+
+    async function loadSampleCases() {
+      try {
+        const res = await fetch('/api/sample_cases');
+        sampleCasesData = await res.json();
+        const select = document.getElementById('sampleCaseSelect');
+        select.innerHTML = '<option value="">-- Choose a Landmark Precedent to Test --</option>';
+        sampleCasesData.forEach((c, idx) => {
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.textContent = `${c.name} [${c.cite}] - ${c.area}`;
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Failed to load sample cases', err);
+      }
+    }
+
+    function loadSelectedSample() {
+      const idx = document.getElementById('sampleCaseSelect').value;
+      if (idx !== "") {
+        const item = sampleCasesData[idx];
+        document.getElementById('caseTextInput').value = item.text_snippet;
+      }
+    }
+
+    async function runClassification() {
+      const text = document.getElementById('caseTextInput').value.trim();
+      if (!text) {
+        alert('Please enter or select legal text first.');
+        return;
+      }
+
+      const btn = document.getElementById('btnClassify');
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳</span> Processing Embeddings &amp; Classifying...';
+
+      try {
+        const res = await fetch('/api/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+
+        document.getElementById('classificationPlaceholder').style.display = 'none';
+        document.getElementById('classificationResult').style.display = 'block';
+
+        if (data.doc2vec) {
+          document.getElementById('d2vBadge').textContent = data.doc2vec.predicted_area_name;
+          const conf = (data.doc2vec.confidence * 100).toFixed(1);
+          document.getElementById('d2vConf').textContent = conf + '%';
+          document.getElementById('d2vBar').style.width = conf + '%';
+
+          const topDiv = document.getElementById('d2vTopList');
+          topDiv.innerHTML = data.doc2vec.top_classes.map(tc => `
+            <div style="display:flex; justify-content:space-between; margin-bottom: 0.3rem;">
+              <span>${tc.area_id} - ${tc.area_name}</span>
+              <span style="font-family:var(--font-mono); color:var(--gold-light);">${(tc.probability * 100).toFixed(1)}%</span>
+            </div>
+          `).join('');
+        }
+
+        if (data.lda) {
+          document.getElementById('ldaBadge').textContent = data.lda.predicted_area_name;
+          const confLda = (data.lda.confidence * 100).toFixed(1);
+          document.getElementById('ldaConf').textContent = confLda + '%';
+          document.getElementById('ldaBar').style.width = confLda + '%';
+        }
+      } catch (err) {
+        alert('Classification error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>⚖</span> Classify Legal Domain &amp; Extract Topics';
+      }
+    }
+
+    async function runPrecedentSearch() {
+      const docId = document.getElementById('precedentSelect').value;
+      const listDiv = document.getElementById('precedentResultsList');
+      listDiv.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Retrieving nearest precedents from embedding space...</p>';
+
+      try {
+        const res = await fetch(`/api/precedents?doc_id=${docId}&topn=6`);
+        const data = await res.json();
+        
+        if (data.similar_precedents) {
+          listDiv.innerHTML = data.similar_precedents.map((p, idx) => `
+            <div class="precedent-item">
+              <div>
+                <div class="precedent-title">${p.case_name}</div>
+                <div class="precedent-meta">
+                  <span>📜 ${p.us_cite_id || 'U.S. Cite'}</span>
+                  <span>📅 ${p.decision_date || 'Date'}</span>
+                  <span style="color: var(--gold-light);">🏷 ${p.issue_area_name}</span>
+                </div>
+              </div>
+              <div class="precedent-score">
+                ${(p.similarity_score).toFixed(3)}
+                <div style="font-size:0.65rem; color:var(--text-muted); font-weight:normal;">COSINE SIM</div>
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        listDiv.innerHTML = `<p style="color:var(--accent-red);">Error: ${err.message}</p>`;
+      }
+    }
+
+    async function loadMetricsData() {
+      try {
+        const res = await fetch('/api/metrics');
+        const data = await res.json();
+        if (data.table1_comparison) {
+          const t1Body = document.getElementById('table1Body');
+          t1Body.innerHTML = '';
+          for (const [model, m] of Object.entries(data.table1_comparison)) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td style="font-weight:600; color:var(--text-main);">${model}</td>
+              <td style="font-family:var(--font-mono); color:var(--gold-light);">${(m.acc_15 * 100).toFixed(1)}%</td>
+              <td style="font-family:var(--font-mono);">${(m.acc_279 * 100).toFixed(1)}%</td>
+              <td style="font-family:var(--font-mono);">${(m.f1_macro_15).toFixed(3)}</td>
+            `;
+            t1Body.appendChild(tr);
+          }
+        }
+
+        if (data.table2_doc2vec_per_class) {
+          const t2Body = document.getElementById('table2Body');
+          t2Body.innerHTML = data.table2_doc2vec_per_class.map(row => `
+            <tr>
+              <td>${row.label_name}</td>
+              <td style="font-family:var(--font-mono);">${(row.precision).toFixed(2)}</td>
+              <td style="font-family:var(--font-mono);">${(row.recall).toFixed(2)}</td>
+              <td style="font-family:var(--font-mono); font-weight:600; color:var(--gold-light);">${(row.f1_score).toFixed(2)}</td>
+              <td style="font-family:var(--font-mono);">${row.support}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Failed to load metrics data', err);
+      }
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSampleCases();
+      runPrecedentSearch();
+      loadMetricsData();
+    });
+  </script>
+</body>
+</html>
