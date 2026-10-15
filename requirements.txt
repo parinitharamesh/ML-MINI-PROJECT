@@ -1,4 +1,4 @@
-# Legal Text Classification & Precedent Engine Requirements
+﻿# Legal Text Classification & Precedent Engine Requirements
 # UE24CS352A - Machine Learning Mini-Project
 
 gensim>=4.3.0
@@ -10,8 +10,5 @@ seaborn>=0.12.0
 networkx>=3.0
 torch>=2.0.0
 transformers>=4.30.0
-reportlab>=4.0.0
-PyPDF2>=3.0.0
 Flask>=2.3.0
-nbformat>=5.9.0
 jupyterlab

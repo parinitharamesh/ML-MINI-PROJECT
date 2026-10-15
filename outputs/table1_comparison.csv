@@ -1,5 +1,5 @@
 Model,15-Labels (Issue Area),279-Labels (Issue Code),Macro F1 (15-Labels),Weighted F1 (15-Labels)
-LDA + LR,0.4257,0.0973,0.1320,0.3335
-Doc2Vec + LR,0.6931,0.4633,0.5907,0.6927
+LDA + LR,0.4251,0.0973,0.1309,0.3323
+Doc2Vec + LR,0.6925,0.4585,0.5997,0.6923
 TF-IDF + LR (Baseline),0.7743,0.5522,0.0000,0.0000
-Head+Tail Transformer (BERT) + LR,0.5480,0.2200,0.4000,0.5206
+Head+Tail Transformer (BERT) + LR,0.4840,0.2200,0.4000,0.4598
